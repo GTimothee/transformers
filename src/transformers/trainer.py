@@ -224,6 +224,7 @@ if is_safetensors_available():
 
 if is_peft_available():
     from peft import PeftModel
+    from peft.tuners.tuners_utils import BaseTunerLayer
 
 
 if is_accelerate_available():
@@ -256,15 +257,17 @@ if is_accelerate_available("0.28.0"):
 
 
 def _is_peft_model(model):
-    if is_peft_available():
-        classes_to_check = (PeftModel,) if is_peft_available() else ()
-        # Here we also check if the model is an instance of `PeftMixedModel` introduced in peft>=0.7.0: https://github.com/huggingface/transformers/pull/28321
-        if version.parse(importlib.metadata.version("peft")) >= version.parse("0.7.0"):
-            from peft import PeftMixedModel
-
-            classes_to_check = (*classes_to_check, PeftMixedModel)
-        return isinstance(model, classes_to_check)
-    return False
+    if not is_peft_available():
+        return False
+    
+    classes_to_check = (PeftModel,) if is_peft_available() else ()
+    # Here we also check if the model is an instance of `PeftMixedModel` introduced in peft>=0.7.0: https://github.com/huggingface/transformers/pull/28321
+    if version.parse(importlib.metadata.version("peft")) >= version.parse("0.7.0"):
+        from peft import PeftMixedModel
+        classes_to_check = (*classes_to_check, PeftMixedModel)
+    
+    return isinstance(model, classes_to_check) or any(isinstance(module, BaseTunerLayer) for module in model.modules())
+    
 
 
 def _get_fsdp_ckpt_kwargs():
